@@ -15,6 +15,10 @@ export const CalculatorForm: React.FC = () => {
     const [totalBags, setTotalBags] = useState<number>(0);
     const [selectedBrandInfo, setSelectedBrandInfo] = useState<BrandInfo | null>(null);
 
+    // Price State
+    const [pricePerBag, setPricePerBag] = useState<number | null>(null);
+    const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
+
     // State specific to tile adhesive
     const [tileSize, setTileSize] = useState<number>(30); // cm
 
@@ -69,6 +73,33 @@ export const CalculatorForm: React.FC = () => {
         setTotalKg(Math.round(finalKg * 10) / 10); // round to 1 decimal
         setTotalBags(bags);
     }, [category, brand, area, thickness, margin, tileSize]);
+
+    // Fetch price when brand changes
+    useEffect(() => {
+        const fetchPrice = async () => {
+            if (!selectedBrandInfo) return;
+
+            setIsFetchingPrice(true);
+            setPricePerBag(null);
+
+            try {
+                // Ensure the brand name is safely encoded for the URL query
+                const res = await fetch(`/api/price?brandName=${encodeURIComponent(selectedBrandInfo.name)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.price) {
+                        setPricePerBag(data.price);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch price", err);
+            } finally {
+                setIsFetchingPrice(false);
+            }
+        };
+
+        fetchPrice();
+    }, [selectedBrandInfo]);
 
 
     return (
@@ -210,10 +241,32 @@ export const CalculatorForm: React.FC = () => {
                         <span className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-300 to-cyan-300">
                             {totalBags}
                         </span>
-                        <span className="text-sm text-indigo-400/80 mt-1 uppercase tracking-wider font-semibold">
+                        <span className="text-sm font-semibold tracking-wider uppercase text-indigo-400/80">
                             {selectedBrandInfo ? `Мешков по ${selectedBrandInfo.bagWeight} кг` : 'Мешков'}
                         </span>
                     </div>
+                </div>
+
+                {/* Total Cost Output */}
+                <div className="flex flex-col items-center justify-center p-4 mt-4 text-center border shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] bg-emerald-500/10 rounded-2xl sm:p-6 border-emerald-500/20">
+                    <span className="mb-2 text-sm font-semibold tracking-wider uppercase text-emerald-500/80">Примерная стоимость</span>
+                    {isFetchingPrice ? (
+                        <div className="flex flex-col items-center space-y-2 animate-pulse">
+                            <div className="h-8 rounded w-36 bg-emerald-500/20"></div>
+                            <div className="h-4 w-52 bg-emerald-500/20 rounded"></div>
+                        </div>
+                    ) : pricePerBag ? (
+                        <>
+                            <span className="text-3xl font-black text-transparent sm:text-4xl bg-clip-text bg-gradient-to-br from-emerald-300 to-teal-300">
+                                {new Intl.NumberFormat('ru-RU').format(totalBags * pricePerBag)} ₽
+                            </span>
+                            <span className="mt-1 text-sm font-medium text-emerald-400/80">
+                                Найдена цена: {new Intl.NumberFormat('ru-RU').format(pricePerBag)} ₽/шт
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-sm italic text-zinc-500">Узнаем цену в магазине...</span>
+                    )}
                 </div>
             </div>
         </motion.div>
