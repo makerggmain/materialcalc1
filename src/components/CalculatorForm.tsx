@@ -15,11 +15,20 @@ export const CalculatorForm: React.FC = () => {
     const [totalBags, setTotalBags] = useState<number>(0);
     const [selectedBrandInfo, setSelectedBrandInfo] = useState<BrandInfo | null>(null);
 
+    // State specific to tile adhesive
+    const [tileSize, setTileSize] = useState<number>(30); // cm
+
     // Update brand list when category changes
     useEffect(() => {
         const catData = materialData.find(c => c.id === category);
         if (catData && catData.brands.length > 0) {
             setBrand(catData.brands[0].id);
+        }
+        // Reset specific states
+        if (category !== 'adhesive') {
+            setThickness(10);
+        } else {
+            setThickness(4); // Default thin layer for tile
         }
     }, [category]);
 
@@ -33,14 +42,33 @@ export const CalculatorForm: React.FC = () => {
 
         setSelectedBrandInfo(brandData);
 
-        // Formula: Area * Thickness * ConsumptionRate * (1 + Margin/100)
-        const baseKg = area * thickness * brandData.consumptionPerMm;
+        let baseKg = 0;
+
+        if (category === 'adhesive') {
+            // Tile adhesive consumption strongly depends on tile size which dictates trowel notch size
+            // Approximate thickness based on tile size if not overridden drastically:
+            // 10x10cm -> 3mm notch (~2kg), 30x30cm -> 6-8mm notch (~3-4kg), >60x60 -> 10-12mm notch (~5-6kg)
+            let effectiveThickness = thickness;
+            if (tileSize <= 10) effectiveThickness = 2;
+            else if (tileSize <= 30) effectiveThickness = 4;
+            else if (tileSize <= 60) effectiveThickness = 6;
+            else effectiveThickness = 8;
+
+            // Allow manual override if user explicitly changes thickness, but default to intelligent guess
+            if (thickness !== 4) effectiveThickness = thickness; // '4' is our default init state
+
+            baseKg = area * effectiveThickness * brandData.consumptionPerMm;
+        } else {
+            // Standard formula for Plaster, Screed, Concrete
+            baseKg = area * thickness * brandData.consumptionPerMm;
+        }
+
         const finalKg = baseKg * (1 + margin / 100);
         const bags = Math.ceil(finalKg / brandData.bagWeight);
 
         setTotalKg(Math.round(finalKg * 10) / 10); // round to 1 decimal
         setTotalBags(bags);
-    }, [category, brand, area, thickness, margin]);
+    }, [category, brand, area, thickness, margin, tileSize]);
 
 
     return (
@@ -52,7 +80,7 @@ export const CalculatorForm: React.FC = () => {
         >
 
             {/* Category Selection */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {materialData.map((cat) => (
                     <button
                         key={cat.id}
@@ -67,14 +95,14 @@ export const CalculatorForm: React.FC = () => {
                 ))}
             </div>
 
-            <div className="space-y-6 bg-black/20 p-6 rounded-3xl border border-white/5">
+            <div className="p-6 space-y-6 border bg-black/20 rounded-3xl border-white/5">
                 {/* Brand Dropdown */}
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-400 pl-1">Производитель / Смесь</label>
+                    <label className="pl-1 text-sm font-medium text-zinc-400">Производитель / Смесь</label>
                     <select
                         value={brand}
                         onChange={(e) => setBrand(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
+                        className="w-full px-4 py-3 transition-colors border rounded-xl bg-zinc-900 border-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
                     >
                         {materialData.find(c => c.id === category)?.brands.map(b => (
                             <option key={b.id} value={b.id}>{b.name}</option>
@@ -82,11 +110,12 @@ export const CalculatorForm: React.FC = () => {
                     </select>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     {/* Area Input */}
-                    <div className="space-y-2 relative">
-                        <label className="text-sm font-medium text-zinc-400 pl-1 flex items-center gap-2">
-                            <Layers className="w-4 h-4" /> Площадь (м²)
+                    <div className="relative space-y-2">
+                        <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
+                            <Layers className="w-4 h-4" />
+                            {category === 'plaster' ? 'Площадь стен (м²)' : 'Площадь пола (м²)'}
                         </label>
                         <input
                             type="number"
@@ -94,33 +123,52 @@ export const CalculatorForm: React.FC = () => {
                             step="0.1"
                             value={area}
                             onChange={(e) => setArea(Number(e.target.value) || 0)}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                            className="w-full px-4 py-3 transition-all border rounded-xl bg-zinc-900 border-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                         />
                     </div>
 
-                    {/* Thickness Input */}
-                    <div className="space-y-2 relative">
-                        <label className="text-sm font-medium text-zinc-400 pl-1 flex items-center gap-2">
-                            <Ruler className="w-4 h-4" /> Толщина слоя (мм)
-                        </label>
-                        <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={thickness}
-                            onChange={(e) => setThickness(Number(e.target.value) || 0)}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                        />
-                    </div>
+                    {/* Thickness or Tile Size Input */}
+                    {category === 'adhesive' ? (
+                        <div className="relative space-y-2">
+                            <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
+                                <Ruler className="w-4 h-4" /> Размер плитки (см)
+                            </label>
+                            <select
+                                value={tileSize}
+                                onChange={(e) => setTileSize(Number(e.target.value))}
+                                className="w-full px-4 py-3 transition-all border rounded-xl bg-zinc-900 border-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            >
+                                <option value={10}>Мелкая (до 10x10)</option>
+                                <option value={30}>Средняя (до 30x30)</option>
+                                <option value={60}>Крупная (до 60x60)</option>
+                                <option value={100}>Макси (от 60x60)</option>
+                            </select>
+                            <p className="px-1 text-xs text-zinc-500">Определяет размер шпателя и толщину слоя.</p>
+                        </div>
+                    ) : (
+                        <div className="relative space-y-2">
+                            <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
+                                <Ruler className="w-4 h-4" /> Средняя толщина слоя (мм)
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={thickness}
+                                onChange={(e) => setThickness(Number(e.target.value) || 0)}
+                                className="w-full px-4 py-3 transition-all border rounded-xl bg-zinc-900 border-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Margin Slider */}
-                <div className="space-y-4 pt-2">
-                    <div className="flex justify-between items-end">
-                        <label className="text-sm font-medium text-zinc-400 pl-1 flex items-center gap-2">
+                <div className="pt-2 space-y-4">
+                    <div className="flex items-end justify-between">
+                        <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
                             <Settings className="w-4 h-4" /> Запас материала
                         </label>
-                        <span className="text-indigo-400 font-bold bg-indigo-500/10 px-3 py-1 rounded-lg text-sm">
+                        <span className="px-3 py-1 text-sm font-bold rounded-lg text-indigo-400 bg-indigo-500/10">
                             {margin}%
                         </span>
                     </div>
@@ -133,7 +181,7 @@ export const CalculatorForm: React.FC = () => {
                         onChange={(e) => setMargin(Number(e.target.value))}
                         className="w-full accent-indigo-500"
                     />
-                    <div className="flex justify-between text-xs text-zinc-600 px-1">
+                    <div className="flex justify-between px-1 text-xs text-zinc-600">
                         <span>0% (Без запаса)</span>
                         <span>10% (Рекомендуемо)</span>
                         <span>20% (Сложный рельеф)</span>
