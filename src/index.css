@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-zinc-100: #f4f4f5;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --font-inter: "Inter", sans-serif;
+}
+
+body {
+  @apply bg-zinc-950 text-zinc-100 font-inter antialiased;
+}
+
+/* Glassmorphism utility */
+@utility glass {
+  @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+@utility glass-card {
+  @apply bg-zinc-900/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+}
