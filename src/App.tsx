@@ -1,5 +1,5 @@
-import React, from 'react'
 import { Calculator } from 'lucide-react'
+import { CalculatorForm } from './components/CalculatorForm'
 
 function App() {
   return (
@@ -17,10 +17,8 @@ function App() {
         </p>
       </header>
 
-      <main className="w-full max-w-2xl glass-card rounded-3xl p-6 sm:p-10">
-        <div className="space-y-6">
-          <p className="text-center text-zinc-500">Calculator interface will be built here</p>
-        </div>
+      <main className="w-full max-w-2xl mt-4">
+        <CalculatorForm />
       </main>
     </div>
   )
