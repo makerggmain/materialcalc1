@@ -16,8 +16,7 @@ export const CalculatorForm: React.FC = () => {
     const [selectedBrandInfo, setSelectedBrandInfo] = useState<BrandInfo | null>(null);
 
     // Price State
-    const [pricePerBag, setPricePerBag] = useState<number | null>(null);
-    const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
+    const [manualPrice, setManualPrice] = useState<number | ''>('');
 
     // State specific to tile adhesive
     const [tileSize, setTileSize] = useState<number>(30); // cm
@@ -74,32 +73,7 @@ export const CalculatorForm: React.FC = () => {
         setTotalBags(bags);
     }, [category, brand, area, thickness, margin, tileSize]);
 
-    // Fetch price when brand changes
-    useEffect(() => {
-        const fetchPrice = async () => {
-            if (!selectedBrandInfo) return;
-
-            setIsFetchingPrice(true);
-            setPricePerBag(null);
-
-            try {
-                // Ensure the brand name is safely encoded for the URL query
-                const res = await fetch(`/api/price?brandName=${encodeURIComponent(selectedBrandInfo.name)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.price) {
-                        setPricePerBag(data.price);
-                    }
-                }
-            } catch (err) {
-                console.error("Failed to fetch price", err);
-            } finally {
-                setIsFetchingPrice(false);
-            }
-        };
-
-        fetchPrice();
-    }, [selectedBrandInfo]);
+    // (Removed auto-fetch price logic)
 
 
     return (
@@ -193,31 +167,51 @@ export const CalculatorForm: React.FC = () => {
                     )}
                 </div>
 
-                {/* Margin Slider */}
-                <div className="pt-2 space-y-4">
-                    <div className="flex items-end justify-between">
+                {/* Manual Price & Margin Grid */}
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 pt-2">
+                    {/* Manual Price Input */}
+                    <div className="space-y-2">
                         <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
-                            <Settings className="w-4 h-4" /> Запас материала
+                            Цена за 1 мешок (₽)
                         </label>
-                        <span className="px-3 py-1 text-sm font-bold rounded-lg text-indigo-400 bg-indigo-500/10">
-                            {margin}%
-                        </span>
+                        <input
+                            type="number"
+                            min="0"
+                            step="10"
+                            placeholder="Например, 550"
+                            value={manualPrice}
+                            onChange={(e) => setManualPrice(e.target.value ? Number(e.target.value) : '')}
+                            className="w-full px-4 py-3 transition-all border rounded-xl bg-zinc-900 border-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        />
                     </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="20"
-                        step="5"
-                        value={margin}
-                        onChange={(e) => setMargin(Number(e.target.value))}
-                        className="w-full accent-indigo-500"
-                    />
-                    <div className="flex justify-between px-1 text-xs text-zinc-600">
-                        <span>0% (Без запаса)</span>
-                        <span>10% (Рекомендуемо)</span>
-                        <span>20% (Сложный рельеф)</span>
+
+                    {/* Margin Slider */}
+                    <div className="space-y-4">
+                        <div className="flex items-end justify-between">
+                            <label className="flex items-center gap-2 pl-1 text-sm font-medium text-zinc-400">
+                                <Settings className="w-4 h-4" /> Запас материала
+                            </label>
+                            <span className="px-3 py-1 text-sm font-bold rounded-lg text-indigo-400 bg-indigo-500/10">
+                                {margin}%
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="20"
+                            step="5"
+                            value={margin}
+                            onChange={(e) => setMargin(Number(e.target.value))}
+                            className="w-full accent-indigo-500"
+                        />
+                        <div className="flex justify-between px-1 text-xs text-zinc-600">
+                            <span>0% (Без запаса)</span>
+                            <span>10% (Рекомендуемо)</span>
+                            <span>20% (Сложный рельеф)</span>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
             {/* Results Card */}
@@ -249,23 +243,17 @@ export const CalculatorForm: React.FC = () => {
 
                 {/* Total Cost Output */}
                 <div className="flex flex-col items-center justify-center p-4 mt-4 text-center border shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] bg-emerald-500/10 rounded-2xl sm:p-6 border-emerald-500/20">
-                    <span className="mb-2 text-sm font-semibold tracking-wider uppercase text-emerald-500/80">Примерная стоимость</span>
-                    {isFetchingPrice ? (
-                        <div className="flex flex-col items-center space-y-2 animate-pulse">
-                            <div className="h-8 rounded w-36 bg-emerald-500/20"></div>
-                            <div className="h-4 w-52 bg-emerald-500/20 rounded"></div>
-                        </div>
-                    ) : pricePerBag ? (
-                        <>
-                            <span className="text-3xl font-black text-transparent sm:text-4xl bg-clip-text bg-gradient-to-br from-emerald-300 to-teal-300">
-                                {new Intl.NumberFormat('ru-RU').format(totalBags * pricePerBag)} ₽
-                            </span>
-                            <span className="mt-1 text-sm font-medium text-emerald-400/80">
-                                Найдена цена: {new Intl.NumberFormat('ru-RU').format(pricePerBag)} ₽/шт
-                            </span>
-                        </>
+                    <span className="mb-2 text-sm font-semibold tracking-wider uppercase text-emerald-500/80">
+                        Итоговая стоимость
+                    </span>
+                    {manualPrice && manualPrice > 0 ? (
+                        <span className="text-3xl font-black text-transparent sm:text-4xl bg-clip-text bg-gradient-to-br from-emerald-300 to-teal-300">
+                            {new Intl.NumberFormat('ru-RU').format(totalBags * manualPrice)} ₽
+                        </span>
                     ) : (
-                        <span className="text-sm italic text-zinc-500">Узнаем цену в магазине...</span>
+                        <span className="text-sm italic text-zinc-500">
+                            Укажите цену за мешок выше, чтобы узнать всю сумму
+                        </span>
                     )}
                 </div>
             </div>
